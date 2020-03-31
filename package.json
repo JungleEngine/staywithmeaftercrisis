@@ -1,0 +1,35 @@
+{
+  "name": "swmac",
+  "version": "1.0.0",
+  "description": "Social app.",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"No test specified so we're trusting you.\" && exit 0",
+    "start": "nodejs app.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JungleEngine/staywithmeaftercrisis.git"
+  },
+  "keywords": [
+    "nodejs",
+    "docker"
+  ],
+  "author": "Mohamed Ali, Mohamed Abdelhady",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/JungleEngine/staywithmeaftercrisis/issues"
+  },
+  "homepage": "https://github.com/JungleEngine/staywithmeaftercrisis#readme",
+  "dependencies": {
+    "dotenv": "^8.2.0",
+    "express": "^4.17.1",
+    "http": "0.0.1-security",
+    "npx": "^10.2.2",
+    "simple-node-logger": "^18.12.24"
+  },
+  "devDependencies": {
+    "eslint": "^6.8.0",
+    "eslint-config-google": "^0.14.0"
+  }
+}
