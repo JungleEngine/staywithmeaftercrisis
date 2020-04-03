@@ -10,7 +10,7 @@ const app = express();
 
 require('./routes/router').routeDispatcher(app);
 
-const port = envProvider.PORT;
+const port = envProvider.SRV_PORT;
 
 app.set('port', port);
 
