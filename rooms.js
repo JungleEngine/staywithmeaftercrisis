@@ -14,54 +14,26 @@ class Room{
 
 class User{
   constructor(organizer, userSocket){
-    log.info(`New user created from the organizer, userID:${userSocket.id}`)
+    log.info(`New user created from the organizer, userID: ${userSocket.id}`)
     this.organizer = organizer
     this.socket = userSocket;
     this.id = userSocket.id;
-    this.joinedRooms = {}; // Represents actuall joined rooms, json for fast lookup
-    
     this.eventHandlers = {
-      // joinRoom: this.joinRoom.bind(this) // Handles new socket joined a room; {eventName: callbackFunction}
-      joinRoom: this.joinRoom.bind(this),
-      createRoom: this.createRoom.bind(this)
+      update: this.update.bind(this),
     }
-
-    this.attachUserEvents();
   }
-
-  // Attaching events for a user, ex{join a room, send some data, disconnect..}
+  update(data){
+    log.info('Update event: ',data);
+  }
+  // Attaching events for a user, ex{update}
   // Each user is responsible for handling its own events, sending updates for organizer (master)
   // Organizer can change some users update frequence (throttle some users)
   // It can also neglect user updates
-
   attachUserEvents() {
     for (var event in this.eventHandlers){
       this.socket.on(event, this.eventHandlers[event]);
     }
-    // log.info("user: " , socket.id , " has connected!!");
-    // socket.on('room', this.joinRoom);
-    // socket.on('disconnecting', this.leaveRoom);
   }
-
-
-  // User joined a room (or create if not exist)
-  joinRoom(data){
-    var roomID = data.roomID;
-    // User can get permission to join only created a room
-    var roomExists = this.organizer.requestJoinRoom(this.socket, roomID);
-    if(roomExists){
-      this.socket.join(roomID);
-      this.organizer.notify('roomJoined', this, '');
-    }else{
-      // Organizer(master) should take appropriate action with client
-      // as the user is trying to join a room that is not created yet.
-      this.organizer.notify('failedToJoinRoom', this, 'Room not created yet')
-    }
-  }
-
-  // createRoom(data){
-
-  // }
 }
 
 
@@ -79,7 +51,6 @@ class Organizer{
     
     this.eventHandlers = {
       connection: this.newConnection.bind(this)
-      // joinRoom: this.joinRoom.bind(this) // Handles new socket joined a room; {eventName: callbackFunction}
     }
 
     this.attachOrganizerEvents();
@@ -88,19 +59,72 @@ class Organizer{
   // New connection
   newConnection(socket){
     // Add new user to users list
-    let userID = socket.id
-    this.users.userID = new User(this, socket);
-    //TODO: log and update stats
+    log.info(socket.handshake.query);
+    log.info(socket.handshake.query.action);
+    log.info(socket.handshake.query.roomName);
+
+    let userID = socket.id;
+    let action = socket.handshake.query.action;
+    let roomName = socket.handshake.query.roomName;
+    
+    let ret = "invalid";
+
+    if(action=="create"){
+      ret = this.createUserInRoom(socket, roomName);
+    }else if(action=="join"){
+      ret = this.joinRoom(socket, roomName);
+    }else{
+
+    }
+
+    if(ret == "success"){
+      this.createUserInRoom(socket, roomName);
+    }
+
+  //TODO: log and update stats
+  }
+  createUserInRoom(socket, roomName){
+    log.info("creating user in new room");
+    // validate room
+    let state = this.getRoomState(roomName);
+    if(state == "new"){
+      // create room 
+      this.createRoom(roomName);
+      let user = new User(this, socket);
+      this.joinRoom(user, roomName);
+      user.attachUserEvents();
+    }
+    log.info("room state:", state);
+
+}
+
+  joinRoom(user, roomName){
+    user.socket.join(roomName);
+    log.info("joining room");
+  }
+  
+  createRoom(roomName){
+    this.rooms[roomName] = new Room(this, roomName, "https://www.youtube.com/watch?v=aqz-KE-bpKQ");
   }
 
+  getRoomState(roomName){
+    let ret;
+    if(!roomName || roomName == ""){
+      ret = "invalid";
+    }
+    else if(this.rooms.hasOwnProperty(roomName)){
+      ret = "exists";
+    }
+    else{
+      ret = "new";
+    }
+    return ret;
+  }
   // attach events to new connection
   attachOrganizerEvents() {
     for (var event in this.eventHandlers){
       this.allSockets.on(event, this.eventHandlers[event]);
     }
-    // log.info("user: " , socket.id , " has connected!!");
-    // socket.on('room', this.joinRoom);
-    // socket.on('disconnecting', this.leaveRoom);
   }
 
   requestJoinRoom(socket, roomID){
@@ -119,25 +143,25 @@ class Organizer{
     log.info(`action: ${action} is submitted to the organizer from slave-type:${callerType} and id:${caller.id}`)
   }
 
-  joinRoom(room){
-    let socket = this;
-    if(Object.keys(socket.rooms).length!=1){
-      log.info("joining room failed");
-      log.info("user is already in room: ",Object.keys(socket.rooms) );
-      return;
-    }
-    socket.room = room;
-    socket.join(room);
-    log.info(socket.rooms);
-    log.info("joined room:", room);
-  }
+  // joinRoom(room){
+  //   let socket = this;
+  //   if(Object.keys(socket.rooms).length!=1){
+  //     log.info("joining room failed");
+  //     log.info("user is already in room: ",Object.keys(socket.rooms) );
+  //     return;
+  //   }
+  //   socket.room = room;
+  //   socket.join(room);
+  //   log.info(socket.rooms);
+  //   log.info("joined room:", room);
+  // }
 
-  leaveRoom(err){
-    socket = this;
-    log.info(socket.room);
-    room = Object.keys(socket.rooms);
-    log.info("leaving room: ", room[1]);
-  }
+  // leaveRoom(err){
+  //   socket = this;
+  //   log.info(socket.room);
+  //   room = Object.keys(socket.rooms);
+  //   log.info("leaving room: ", room[1]);
+  // }
 
 }
 const organizer = new Organizer(envProvider.IO_PORT);
