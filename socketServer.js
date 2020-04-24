@@ -1,165 +1,138 @@
-const log = require('simple-node-logger').createSimpleLogger();
+const envProvider = require("./env_provider");
+const log = require("simple-node-logger").createSimpleLogger();
 
-const User = require('./src/user');
-const Room = require('./src/room');
+class Room {
+  constructor(organizer, roomID, url = "url") {
+    this.id = roomID;
+    this.url = url;
+    this.organizer = organizer;
+  }
+}
+
+class User {
+  constructor(organizer, userSocket) {
+    log.info(`New user created from the organizer, userID: ${userSocket.id}`);
+    this.organizer = organizer;
+    this.socket = userSocket;
+    this.id = userSocket.id;
+    this.eventHandlers = {
+      update: this.update.bind(this)
+    };
+  }
+  update(data) {
+    log.info("Update event: ", data);
+  }
+  // Attaching events for a user, ex{update}
+  // Each user is responsible for handling its own events, sending updates for organizer (master)
+  // Organizer can change some users update frequence (throttle some users)
+  // It can also neglect user updates
+  attachUserEvents() {
+    for (var event in this.eventHandlers) {
+      this.socket.on(event, this.eventHandlers[event]);
+    }
+  }
+}
 
 class Organizer {
   constructor(server) {
-    this.rooms = {};
-    this.users = {};
+    this.rooms = {}; //json object instead of array for fast lookup {id:roomObject}
+    this.users = {}; // Json object instead of array for fast lookup {id: userObject}
 
-    this.allSockets = require('socket.io')(server).sockets;
+    this.allSockets = require("socket.io")(server).sockets;
 
     this.eventHandlers = {
-      connection: this.newConnection.bind(this),
+      connection: this.newConnection.bind(this)
     };
-    this.deleteUser = this.deleteUser.bind(this);
-    this.setRoomURL = this.setRoomURL.bind(this);
-    this.deleteRoomIfEmpty = this.deleteRoomIfEmpty.bind(this);
+
     this.attachOrganizerEvents();
   }
 
   // New connection
-  async newConnection(socket) {
-    const action = socket.handshake.query.action;
-    const roomName = socket.handshake.query.roomName;
-    log.info(
-        `new connection, userID=${socket.id}\
-       action=${action} roomName=${roomName}`,
-    );
+  newConnection(socket) {
+    // Add new user to users list
+    log.info(socket.handshake.query);
+    log.info(socket.handshake.query.action);
+    log.info(socket.handshake.query.roomName);
 
-    let ret = 'err';
-    const user = new User(this, socket);
+    let action = socket.handshake.query.action;
+    let roomName = socket.handshake.query.roomName;
 
-    if (action == 'create') {
-      ret = this.createRoom(roomName);
-    }
+    let ret = "invalid";
 
-    if ((action == 'create' && ret == 'succ') || action == 'join') {
-      ret = this.joinRoom(user, roomName);
-    }
-
-    if (ret == 'succ') {
-      user.attachUserEvents();
+    if (action == "create") {
+      ret = this.createUserInRoom(socket, roomName);
+    } else if (action == "join") {
+      ret = this.joinRoom(socket, roomName);
     } else {
-      log.error('closing connection with client!');
-      await user.forceDisconnect();
-      this.deleteUser(user);
     }
-  }
 
-  userDisconnecting(user, err) {
-    log.info('userDisconnecting');
-    this.leaveRoom(user);
-    this.deleteUser(user);
+    //TODO: log and update stats
   }
-
-  deleteUser(user) {
-    delete this.users[user.id];
-  }
-
-  leaveRoom(user) {
-    if (user.roomName == null) {
-      log.error(`user leaving room:${user.roomName}`);
-      return 'err';
+  createUserInRoom(socket, roomName) {
+    log.info("creating user in new room");
+    // validate room
+    let state = this.getRoomState(roomName);
+    if (state == "new") {
+      // create room
+      this.createRoom(roomName);
+      let user = new User(this, socket);
+      this.joinRoom(user, roomName);
+      user.attachUserEvents();
     }
-    if (!this.rooms.hasOwnProperty(user.roomName)) {
-      log.error(
-          `user leaving a room which isn't registered,\
-           room name:${user.roomName}`,
-      );
-      return 'err';
-    }
-    this.rooms[user.roomName].removeUser(user);
-    log.info(`user:${user.id} leaveing room:${user.roomName}`);
-
-    this.deleteRoomIfEmpty(user.roomName);
-
-    return 'succ';
-  }
-  deleteRoomIfEmpty(roomName) {
-    if (this.rooms[roomName].hasUsers() === false) {
-      log.info(`deleting empty room:${roomName}`);
-      delete this.rooms[roomName];
-    }
+    log.info("room state:", state);
   }
 
   joinRoom(user, roomName) {
-    log.info('joining room');
-    if (!roomName) {
-      log.error('trying to join a room with an empty name');
-      return 'err';
-    }
-    if (!this.rooms.hasOwnProperty(roomName)) {
-      log.error('trying to join a room which isn\'t created');
-      return 'err';
-    }
-    user.setRoom(roomName);
-    this.rooms[roomName].addUser(user);
-    this.rooms[roomName].sendURLToUser(user);
-    return 'succ';
+    user.socket.join(roomName);
+    log.info("joining room");
   }
 
   createRoom(roomName) {
-    let ret = 'err';
-    const state = this.getRoomState(roomName);
-    if (state == 'new') {
-      log.info('creating user in new room');
-      this.rooms[roomName] = new Room(
-          this,
-          roomName,
-          'https://www.youtube.com/watch?v=aqz-KE-bpKQ',
-      );
-      ret = 'succ';
-    } else {
-      log.error(
-          'failed to create new room, older room exists with the same name.',
-      );
-    }
-    return ret;
+    this.rooms[roomName] = new Room(
+      this,
+      roomName,
+      "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+    );
   }
 
   getRoomState(roomName) {
     let ret;
-    if (!roomName || roomName == '') {
-      ret = 'invalid';
+    if (!roomName || roomName == "") {
+      ret = "invalid";
     } else if (this.rooms.hasOwnProperty(roomName)) {
-      ret = 'exists';
+      ret = "exists";
     } else {
-      ret = 'new';
+      ret = "new";
     }
     return ret;
   }
-
-  setRoomURL(user, data) {
-    if (!this.rooms.hasOwnProperty(user.roomName)) {
-      log.error(
-          `user trying to set url for room:${user.roomName}\
-          which isn't registered in organizer rooms`,
-      );
-      return;
-    }
-    this.rooms[user.roomName].setURL(data.url);
-  }
-
   // attach events to new connection
   attachOrganizerEvents() {
-    for (const event in this.eventHandlers) {
-      if (Object.prototype.hasOwnProperty.call(this.eventHandlers, event)) {
-        this.allSockets.on(event, this.eventHandlers[event]);
-      }
+    for (var event in this.eventHandlers) {
+      this.allSockets.on(event, this.eventHandlers[event]);
     }
   }
-  // Organizer processes notifications to sync updates
+
+  requestJoinRoom(socket, roomID) {
+    // Check if room exist: if exist, and user is valid to join then return room, else return None
+    // If room created before.
+    if (this.rooms.hasOwnProperty(roomID)) {
+      return true;
+    } else {
+      // Room not created
+      return false;
+    }
+  }
+
+  // Organizer should process notifications in order to keep in-sync with updates
   notify(action, caller, message) {
-    const callerType = caller instanceof User ? 'User' : 'Room';
+    var callerType = caller instanceof User ? "User" : "Room";
     log.info(
-        `action: ${action} is submitted to the organizer\
-       from slave-type:${callerType} and id:${caller.id}`,
+      `action: ${action} is submitted to the organizer from slave-type:${callerType} and id:${caller.id}`
     );
   }
 }
-
+// const organizer = new Organizer(server);
 module.exports = {
-  Organizer: Organizer,
+  Organizer: Organizer
 };
