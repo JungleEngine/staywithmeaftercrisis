@@ -8,6 +8,8 @@ const DB_USERNAME = process.env.DB_USERNAME || 'root';
 const DB_PASSWORD = process.env.DB_PASSWORD || 'password';
 const DB_HOST = process.env.DB_HOST || 'localhost';
 
+const IO_PORT = process.env.IO_PORT || '3000';
+
 module.exports = {
   SRV_PORT,
   SRV_HOST,
@@ -16,4 +18,5 @@ module.exports = {
   DB_USERNAME,
   DB_PASSWORD,
   DB_HOST,
+  IO_PORT,
 };

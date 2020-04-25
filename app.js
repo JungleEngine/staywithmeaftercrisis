@@ -8,13 +8,16 @@ const express = require('express');
 
 const app = express();
 
-require('./routes/router').routeDispatcher(app);
-
 const port = envProvider.SRV_PORT;
 
 app.set('port', port);
 
 const server = http.createServer(app);
+
+// TODO: Delete this, no need to dispatch routes anymore for this app
+// require('./routes/router').routeDispatcher(app);
+const Organizer = require('./socketServer').Organizer;
+organizer = new Organizer(server);
 
 server.listen(port);
 
@@ -22,9 +25,9 @@ server.on('error', onError);
 server.on('listening', onListening);
 
 /**
-* Event listener for HTTP server "error" event.
-* @param {Object} error returned.
-*/
+ * Event listener for HTTP server "error" event.
+ * @param {Object} error returned.
+ */
 function onError(error) {
   if (error.syscall !== 'listen') {
     throw error;
@@ -48,16 +51,13 @@ function onError(error) {
 }
 
 /**
-* Event listener for HTTP server "listening" event.
-*/
+ * Event listener for HTTP server "listening" event.
+ */
 function onListening() {
   const addr = server.address();
-  const bind = typeof addr === 'string' ?
-'pipe ' + addr :
-'port ' + addr.port;
+  const bind = typeof addr === 'string' ? 'pipe ' + addr : 'port ' + addr.port;
   log.info(bind);
   log.info('server started successfully, listening to : ' + addr.port);
 }
-
 
 module.exports = app;
