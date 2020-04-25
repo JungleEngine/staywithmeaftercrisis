@@ -1,7 +1,7 @@
 const log = require("simple-node-logger").createSimpleLogger();
 class User {
   constructor(organizer, userSocket) {
-    log.info(`New user created from the organizer, userID: ${userSocket.id}`);
+    log.info(`new user created from the organizer, userID: ${userSocket.id}`);
     this.organizer = organizer;
     this.socket = userSocket;
     this.id = userSocket.id;
@@ -25,7 +25,7 @@ class User {
     this.organizer.setRoomURL(this, data);
   }
   update(data) {
-    log.info("Update event: ", data);
+    log.info("update event: ", data);
   }
   setRoom(roomName) {
     this.roomName = roomName;
