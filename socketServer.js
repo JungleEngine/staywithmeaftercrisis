@@ -159,7 +159,7 @@ class Organizer {
     );
   }
 }
-// const organizer = new Organizer(server);
+
 module.exports = {
   Organizer: Organizer,
 };
