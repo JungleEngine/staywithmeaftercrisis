@@ -41,6 +41,8 @@ class Organizer {
         console.log("closing connection with client!");
         await user.forceDisconnect();
         this.deleteUser(user);
+      } else {
+        user.attachUserEvents();
       }
     } else {
       // empty line
@@ -59,9 +61,11 @@ class Organizer {
     }
     this.deleteUser(user);
   }
+
   deleteUser(user) {
     delete this.users[user.id];
   }
+
   async leaveRoom(user) {
     if (user.roomName == null) {
       log.info(`user leaving room:${user.roomName}`);
@@ -77,6 +81,7 @@ class Organizer {
     this.rooms[user.roomName].removeUser(user);
     return "succ";
   }
+
   createUserInRoom(socket, roomName) {
     let ret = "err";
     let state = this.getRoomState(roomName);
