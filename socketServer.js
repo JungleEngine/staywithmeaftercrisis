@@ -16,49 +16,41 @@ class Organizer {
     };
     this.deleteUser = this.deleteUser.bind(this);
     this.setRoomURL = this.setRoomURL.bind(this);
-
+    this.deleteRoomIfEmpty = this.deleteRoomIfEmpty.bind(this);
     this.attachOrganizerEvents();
   }
 
   // New connection
   async newConnection(socket) {
-    // Add new user to users list
-    console.log(socket.handshake.query);
-    console.log(socket.handshake.query.action);
-    console.log(socket.handshake.query.roomName);
-
     let action = socket.handshake.query.action;
     let roomName = socket.handshake.query.roomName;
+    log.info(
+      `new connection, userID=${socket.id} action=${action} roomName=${roomName}`
+    );
 
-    let ret = "invalid";
+    let ret = "err";
+    let user = new User(this, socket);
 
     if (action == "create") {
-      ret = this.createUserInRoom(socket, roomName);
-    } else if (action == "join") {
-      let user = new User(this, socket);
-      ret = this.joinRoom(user, roomName);
-      if (ret != "succ") {
-        console.log("closing connection with client!");
-        await user.forceDisconnect();
-        this.deleteUser(user);
-      } else {
-        user.attachUserEvents();
-      }
-    } else {
-      // empty line
+      ret = this.createRoom(roomName);
     }
 
-    //TODO: log and update stats
+    if (action == "create" || action == "join") {
+      ret = this.joinRoom(user, roomName);
+    }
+
+    if (ret == "succ") {
+      user.attachUserEvents();
+    } else {
+      log.error("closing connection with client!");
+      await user.forceDisconnect();
+      this.deleteUser(user);
+    }
   }
 
-  async userDisconnecting(user, err) {
+  userDisconnecting(user, err) {
     log.info("userDisconnecting");
-    let ret = await this.leaveRoom(user);
-    if (ret === "succ") {
-      if (this.rooms[user.roomName].hasUsers() === false) {
-        delete this.rooms[user.roomName];
-      }
-    }
+    this.leaveRoom(user);
     this.deleteUser(user);
   }
 
@@ -66,50 +58,39 @@ class Organizer {
     delete this.users[user.id];
   }
 
-  async leaveRoom(user) {
+  leaveRoom(user) {
     if (user.roomName == null) {
-      log.info(`user leaving room:${user.roomName}`);
+      log.error(`user leaving room:${user.roomName}`);
       return "err";
     }
     if (!this.rooms.hasOwnProperty(user.roomName)) {
-      log.info(
+      log.error(
         `user leaving a room which isn't registered, room name:${user.roomName}`
       );
       return "err";
     }
-    log.info("async leaveRoom");
     this.rooms[user.roomName].removeUser(user);
+    log.info(`user:${user.id} leaveing room:${user.roomName}`);
+
+    this.deleteRoomIfEmpty(user.roomName);
+
     return "succ";
   }
-
-  createUserInRoom(socket, roomName) {
-    let ret = "err";
-    let state = this.getRoomState(roomName);
-    if (state == "new") {
-      log.info("creating user in new room");
-      this.createRoom(roomName);
-      let user = new User(this, socket);
-      ret = this.joinRoom(user, roomName);
-      if (ret != "succ") {
-        this.deleteUser(user);
-      } else {
-        user.attachUserEvents();
-      }
-    } else {
-      log.info("user trying to create an existing room");
-      ret = "err";
+  deleteRoomIfEmpty(roomName) {
+    if (this.rooms[roomName].hasUsers() === false) {
+      log.info(`deleting empty room:${roomName}`);
+      delete this.rooms[roomName];
     }
-    return ret;
   }
 
   joinRoom(user, roomName) {
     log.info("joining room");
     if (!roomName) {
-      console.log("ERROR trying to join a room with an empty name");
+      log.error("trying to join a room with an empty name");
       return "err";
     }
     if (!this.rooms.hasOwnProperty(roomName)) {
-      console.log("ERROR trying to join a room which isn't created");
+      log.error("trying to join a room which isn't created");
       return "err";
     }
     user.setRoom(roomName);
@@ -119,11 +100,22 @@ class Organizer {
   }
 
   createRoom(roomName) {
-    this.rooms[roomName] = new Room(
-      this,
-      roomName,
-      "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
-    );
+    let ret = "err";
+    let state = this.getRoomState(roomName);
+    if (state == "new") {
+      log.info("creating user in new room");
+      this.rooms[roomName] = new Room(
+        this,
+        roomName,
+        "https://www.youtube.com/watch?v=aqz-KE-bpKQ"
+      );
+      ret = "succ";
+    } else {
+      log.error(
+        "failed to create new room, older room exists with the same name."
+      );
+    }
+    return ret;
   }
 
   getRoomState(roomName) {
@@ -140,7 +132,7 @@ class Organizer {
 
   setRoomURL(user, data) {
     if (!this.rooms.hasOwnProperty(user.roomName)) {
-      log.info(
+      log.error(
         `user trying to set url for room:${user.roomName} which isn't registered in organizer rooms`
       );
       return;
