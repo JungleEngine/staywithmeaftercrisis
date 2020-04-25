@@ -1,4 +1,4 @@
-const log = require('simple-node-logger').createSimpleLogger();
+const log = require("simple-node-logger").createSimpleLogger();
 class User {
   constructor(organizer, userSocket) {
     log.info(`new user created from the organizer, userID: ${userSocket.id}`);
@@ -15,17 +15,17 @@ class User {
   setRoomURL(data) {
     log.info(`setRoomURL: ${data.url}`);
     if (this.roomName == null) {
-      log.error('user trying to set url but didn\'t join room');
+      log.error("user trying to set url but didn't join room");
       return;
     }
-    if (data == null || !data.hasOwnProperty('url')) {
-      log.error('user trying to set url for room but url is null');
+    if (data == null || !data.hasOwnProperty("url")) {
+      log.error("user trying to set url for room but url is null");
       return;
     }
     this.organizer.setRoomURL(this, data);
   }
   update(data) {
-    log.info('update event: ', data);
+    log.info("update event: ", data);
   }
   setRoom(roomName) {
     this.roomName = roomName;
