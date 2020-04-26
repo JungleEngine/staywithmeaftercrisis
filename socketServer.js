@@ -16,9 +16,19 @@ class Organizer {
     this.deleteUser = this.deleteUser.bind(this);
     this.setRoomURL = this.setRoomURL.bind(this);
     this.deleteRoomIfEmpty = this.deleteRoomIfEmpty.bind(this);
+    this.handleUserEvents = this.handleUserEvents.bind(this);
     this.attachOrganizerEvents();
   }
-
+  handleUserEvents(user, action, data) {
+    if (action === 'play' || action === 'pause') {
+      if (user.roomName && this.rooms[user.roomName]) {
+        this.rooms[user.roomName].broadcast('update', {
+          action: action,
+          data: data,
+        });
+      }
+    }
+  }
   // New connection
   async newConnection(socket) {
     const action = socket.handshake.query.action;
@@ -139,7 +149,7 @@ class Organizer {
       );
       return;
     }
-    this.rooms[user.roomName].setURL(data.url);
+    this.rooms[user.roomName].setURL(data);
   }
 
   // attach events to new connection
