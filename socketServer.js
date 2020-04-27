@@ -18,7 +18,16 @@ class Organizer {
     this.deleteRoomIfEmpty = this.deleteRoomIfEmpty.bind(this);
     this.attachOrganizerEvents();
   }
-
+  handleUserEvents(user, action, data) {
+    if (action === 'play' || action === 'pause' || action === 'seek') {
+      if (user.roomName && this.rooms[user.roomName]) {
+        this.rooms[user.roomName].broadcast('update', {
+          action: action,
+          data: data,
+        });
+      }
+    }
+  }
   // New connection
   async newConnection(socket) {
     const action = socket.handshake.query.action;
