@@ -26,6 +26,7 @@ class User {
   }
   update(data) {
     log.info('update event: ', data);
+    this.organizer.handleUserEvents(this, data.action, data.data);
   }
   setRoom(roomName) {
     this.roomName = roomName;

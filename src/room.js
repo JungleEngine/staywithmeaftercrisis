@@ -42,7 +42,7 @@ class Room {
   }
 
   broadcast(channel, data) {
-    log.info('setting URL!');
+    log.info(`broadcasting channel:${channel} and sending data:`, data);
     const usersKeys = Object.keys(this.users);
     for (const id in usersKeys) {
       if (Object.prototype.hasOwnProperty.call(usersKeys, id)) {
