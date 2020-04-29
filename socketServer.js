@@ -16,11 +16,10 @@ class Organizer {
     this.deleteUser = this.deleteUser.bind(this);
     this.setRoomURL = this.setRoomURL.bind(this);
     this.deleteRoomIfEmpty = this.deleteRoomIfEmpty.bind(this);
-    this.handleUserEvents = this.handleUserEvents.bind(this);
     this.attachOrganizerEvents();
   }
   handleUserEvents(user, action, data) {
-    if (action === 'play' || action === 'pause') {
+    if (action === 'play' || action === 'pause' || action === 'seek') {
       if (user.roomName && this.rooms[user.roomName]) {
         this.rooms[user.roomName].broadcast('update', {
           action: action,
@@ -149,7 +148,7 @@ class Organizer {
       );
       return;
     }
-    this.rooms[user.roomName].setURL(data);
+    this.rooms[user.roomName].setURL(data.url);
   }
 
   // attach events to new connection

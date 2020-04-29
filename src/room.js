@@ -38,7 +38,7 @@ class Room {
   setURL(url) {
     log.info(`setting new url:${url}`);
     this.url = url;
-    this.broadcast('setURL', url);
+    this.broadcast('setURL', {url: url});
   }
 
   broadcast(channel, data) {
@@ -54,7 +54,7 @@ class Room {
 
   sendURLToUser(user) {
     if (this.url) {
-      user.socket.emit('setURL', this.url);
+      user.socket.emit('setURL', {url: this.url});
     }
   }
 }
