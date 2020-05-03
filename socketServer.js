@@ -23,7 +23,8 @@ class Organizer {
       action === "play" ||
       action === "pause" ||
       action === "seek" ||
-      action === "buffer"
+      action === "buffer" ||
+      action === "resync"
     ) {
       if (user.roomName && this.rooms[user.roomName]) {
         this.rooms[user.roomName].broadcastExceptForSender(
